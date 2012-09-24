@@ -1,10 +1,12 @@
 package properties
 
 import (
+	"fmt"
 	"io"
+	"io/ioutil"
+	"os"
+	"unicode"
 	"validate"
-
-//	"os"
 )
 
 type Property struct {
@@ -18,30 +20,59 @@ type Properties struct {
 	byKey map[string]*Property
 }
 
-func Parse(r *io.Reader) (p *Properties, validate *validate.Results) {
-	p = new(Properties)
-	validate = new(validate.Results)
-	var buf [1024]byte
-	left := 0
+func Parse(r *io.Reader) (*Properties, *validate.Results) {
+	p := new(Properties)
+	validate := new(validate.Results)
+	buf, err := ioutil.ReadAll(r)
+	if err != nil {
+		msg := fmt.Sprintf("error while reading file content: %s", err.Error())
+		validate.AddError(msg)
+		return nil, validate
+	}
+	parse(buf, p, validate)
+	return p, validate
+}
+
+func ReadAndParse(fileName string) (p *Properties, validate *validate.Results) {
+	file, err := os.Open(fileName)
+	if err != nil {
+		v := new(validate.Results)
+		msg := fmt.Sprintf("could not open file '%s': %s", fileName, err.Error())
+		v.AddError(msg)
+		return nil, v
+	}
+}
+
+func parse(buf []byte, props *Properties, validate *validate.Results) {
+	readKey := true
+	var key []rune = make([]rune, 512)
+	var value []rune = make([]rune, 512)
+	key = key[:0]
+	value = key[:0]
 	line := 0
-	for {
-		n, err := r.Read(buf[left:])
-		if err != nil {
-			left = left + n
-			consumed, line := parse(buf[:left], line, p, validate)
-			left = left - consumed
-			if left > 0 {
-				copy(buf, buf[consumed:consumed+left])
+	for _, v := range buf {
+		switch {
+		case v == '=':
+			if readKey {
+				readKey = false
+			} else {
+				value = append(value, '=')
 			}
+		case v == '\n':
+			if readKey {
+
+			} else {
+				prop := Property{string(key), string(value), line}
+				props
+			}
+			line++
+		case readKey && isWhiteSpace(v):
+		default:
 		}
 	}
-	return
 }
 
-func ReadAndParse(file string) (p *Properties, validate *validate.Results) {
-
-}
-
-func parse(buf []byte, p *Properteis, validate *validate.Results) (consumed int, line int) {
-
+func isWhiteSpace(b byte) bool {
+	v := rune(b)
+	return unicode.IsSpace(v)
 }
