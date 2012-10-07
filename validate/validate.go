@@ -15,19 +15,19 @@ type Result struct {
 }
 
 func (r *Results) AddWarning(msg string) {
-	r.Warnings = resAppend(r.Warnings, Result{line: -1, Msg: msg})
+	r.Warnings = resAppend(r.Warnings, Result{Msg: msg})
 }
 
-func (r *Results) AddWarning(line int, msg string) {
-	r.Warnings = resAppend(r.Warnings, Result{line: -1, Msg: msg})
+func (r *Results) AddWarningN(msg string, line int) {
+	r.Warnings = resAppend(r.Warnings, Result{Msg: msg, Line: line})
 }
 
 func (r *Results) AddError(msg string) {
-	r.Errors = resAppend(r.Errors, Result{line: line, Msg: msg})
+	r.Errors = resAppend(r.Errors, Result{Msg: msg})
 }
 
-func (r *Results) AddError(line int, msg string) {
-	r.Errors = resAppend(r.Errors, Result{line: line, Msg: msg})
+func (r *Results) AddErrorN(msg string, line int) {
+	r.Errors = resAppend(r.Errors, Result{Msg: msg, Line: line})
 }
 
 func (r *Results) Any() bool {
@@ -35,18 +35,11 @@ func (r *Results) Any() bool {
 }
 
 func resAppend(orig []Result, res Result) []Result {
-	l := len(orig)
-	if l < cap(orig) {
-		// returns a new slice with the same backing array, len+1
-		return append(orig, res)
-	} else {
-		if l == 0 {
-			return []Result{res}
-		} else {
-			xs := make([]Result, l*2)
-			copy(xs, orig)
-			xs[l] = res
-			return xs[0 : l+1]
-		}
+	l, c := len(orig), cap(orig)
+	if l >= c {
+		xs := make([]Result, (c+1)*2)
+		copy(xs, orig)
+		orig = xs[:l]
 	}
+	return append(orig, res)
 }

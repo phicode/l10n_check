@@ -1,27 +1,37 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
+
+	"github.com/PhiCode/l10n_check/config/properties"
+	"github.com/PhiCode/l10n_check/validate"
 )
 
-func main() {
-	flag.Parse()
+type result struct {
+	file  string
+	props *properties.Properties
+	valid *validate.Results
+}
 
-	args := flag.Args()
+func main() {
+	args := os.Args()
 	l := len(args)
-	if l < 2 {
+	if l < 1 {
 		usage()
 	}
-	encoding := args[0]
-	files := args[1:]
-	result := check.RunCheck(encoding, files)
 
-	fmt.Println(result)
+	results := make([]result, 0, l)
+
+	for _, file := range args {
+		props, valid := properties.ReadAndParse(file)
+		results = append(file, results, result{props, valid})
+	}
+
+	fmt.Println(results)
 }
 
 func usage() {
-	fmt.Println("usage: <encoding> <file-name> [<file-name>]...")
+	fmt.Printf("usage: %s <file-name> [<file-name>]...\n", os.Args()[0])
 	os.Exit(1)
 }

@@ -1,12 +1,12 @@
 package properties
 
 import (
+	"bytes"
 	"fmt"
-	"io"
 	"io/ioutil"
-	"os"
 	"unicode"
-	"validate"
+
+	"github.com/PhiCode/l10n_check/validate"
 )
 
 type Property struct {
@@ -20,54 +20,42 @@ type Properties struct {
 	byKey map[string]*Property
 }
 
-func Parse(r *io.Reader) (*Properties, *validate.Results) {
-	p := new(Properties)
-	validate := new(validate.Results)
-	buf, err := ioutil.ReadAll(r)
+func ReadAndParse(filename string) (*Properties, *validate.Results) {
+	data, err := ioutil.ReadFile(filename)
 	if err != nil {
-		msg := fmt.Sprintf("error while reading file content: %s", err.Error())
-		validate.AddError(msg)
-		return nil, validate
-	}
-	parse(buf, p, validate)
-	return p, validate
-}
-
-func ReadAndParse(fileName string) (p *Properties, validate *validate.Results) {
-	file, err := os.Open(fileName)
-	if err != nil {
+		msg := fmt.Sprintf("could not open/read file '%s': %s", filename, err.Error())
 		v := new(validate.Results)
-		msg := fmt.Sprintf("could not open file '%s': %s", fileName, err.Error())
 		v.AddError(msg)
 		return nil, v
 	}
+	var v validate.Results
+	var p Properties
+	parse(data, &p, &v)
+	return &p, &v
 }
 
-func parse(buf []byte, props *Properties, validate *validate.Results) {
-	readKey := true
-	var key []rune = make([]rune, 512)
-	var value []rune = make([]rune, 512)
-	key = key[:0]
-	value = key[:0]
-	line := 0
-	for _, v := range buf {
-		switch {
-		case v == '=':
-			if readKey {
-				readKey = false
-			} else {
-				value = append(value, '=')
-			}
-		case v == '\n':
-			if readKey {
+func parse(data []byte, props *Properties, validate *validate.Results) {
+	lines := bytes.Split(data, []byte("\n"))
+	props.props = make([]Property, 0, len(lines)/2)
 
-			} else {
-				prop := Property{string(key), string(value), line}
-				props
-			}
+	reader := bytes.NewReader(data)
+	//	line := 1
+	for x, line := range lines {
+		n := x + 1
+		if readEmptyOrComment(reader, n, validate) {
 			line++
-		case readKey && isWhiteSpace(v):
-		default:
+			continue
+		}
+
+		key, ok := readKey(line, n, validate)
+		if !ok {
+			continue
+		}
+		val, ok := readVal(line, n, validate)
+		if ok {
+			prop := Property{Key: key, Value: val, Line: n}
+			props.props = append(props.props, prop)
+			props.byKey[key] = prop
 		}
 	}
 }
@@ -75,4 +63,30 @@ func parse(buf []byte, props *Properties, validate *validate.Results) {
 func isWhiteSpace(b byte) bool {
 	v := rune(b)
 	return unicode.IsSpace(v)
+}
+
+func readEmptyOrComment(reader *bytes.Reader, n int, validate *validate.Results) bool {
+	num := reader.Len()
+	if num <= 0 {
+		return false
+	}
+	v1 := reader.ReadByte()
+	if v1 == '\r' {
+		if num > 1 {
+			v2 := reader.ReadByte()
+			if v2 == '\n' {
+				return true
+			} else {
+				reader.UnreadByte()
+				reader.UnreadByte()
+				validate.AddErrorN("\\r is not followed by a \\n", n)
+			}
+		} else {
+			reader.UnreadByte()
+			validate.AddErrorN("\\r at end of file", n)
+		}
+
+	}
+	line = bytes.TrimSpace(line)
+	return len(line) == 0 || line[0] == '#'
 }
