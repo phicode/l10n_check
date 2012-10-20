@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"sort"
 	"unicode"
 
 	"github.com/PhiCode/l10n_check/validate"
@@ -38,6 +39,7 @@ func parse(data []byte, props *Properties, validate *validate.Results) {
 	props.props = make([]Property, 0, len(lines)/2)
 	lines := splitLines(data)
 	partialLine := false
+	var key, value []byte = nil, nil
 	for x, line := range lines {
 		if !partialLine {
 			if isEmptyOrComment(line) {
@@ -45,9 +47,15 @@ func parse(data []byte, props *Properties, validate *validate.Results) {
 			}
 			key, value, partialLine := readKeyValue(line, false)
 		} else {
-			value, partialLine := 
+			value, partialLine := readPartialLine()
 		}
+		//if ()
+	}
+	if partialLine && len(key) != 0 {
+		props.add(key, value)
+	}
 
+	/*
 		line := x + 1
 		if readEmptyOrComment(reader, n, validate) {
 			line++
@@ -64,9 +72,10 @@ func parse(data []byte, props *Properties, validate *validate.Results) {
 			props.props = append(props.props, prop)
 			props.byKey[key] = prop
 		}
-	}
+	}*/
 }
 
+/*
 func readEmptyOrComment(reader *bytes.Reader, n int, validate *validate.Results) bool {
 	num := reader.Len()
 	if num <= 0 {
@@ -92,7 +101,7 @@ func readEmptyOrComment(reader *bytes.Reader, n int, validate *validate.Results)
 	reader.ReadAt(b, off)
 	line = bytes.TrimSpace(line)
 	return len(line) == 0 || line[0] == '#'
-}
+}*/
 
 // TODO: make "lines" a container/List
 func splitLines(data []byte) [][]byte {
@@ -116,10 +125,21 @@ func splitLines(data []byte) [][]byte {
 	}
 }
 
-const whitespaces = []byte{' ', '\r', '\n', '\t', '\f'}
+// sorted byte slice
+// 0x09 = tab
+// 0x0C = form feed
+// 0x20 = space
+//TODO: \r && \n
+var whitespaces = []byte{0x09, 0x0C, 0x20, '\r', '\n'}
+
+func init() {
+	//TODO: implenent sort.Interface for []byte
+	sort.Sort(whitespaces)
+}
 
 func isWhiteSpace(b byte) bool {
-	return bytes.Contains(whitespaces, b)
+	i := sort.Search(len(whitespaces), func(i int) bool { return whitespaces[i] >= b })
+	return i < len(data) && whitespaces[i] == b
 }
 
 // empty / comment lines 
