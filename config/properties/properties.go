@@ -35,13 +35,20 @@ func ReadAndParse(filename string) (*Properties, *validate.Results) {
 }
 
 func parse(data []byte, props *Properties, validate *validate.Results) {
-	lines := bytes.Split(data, []byte("\n"))
 	props.props = make([]Property, 0, len(lines)/2)
-
-	reader := bytes.NewReader(data)
-	//	line := 1
+	lines := splitLines(data)
+	partialLine := false
 	for x, line := range lines {
-		n := x + 1
+		if !partialLine {
+			if isEmptyOrComment(line) {
+				continue
+			}
+			key, value, partialLine := readKeyValue(line, false)
+		} else {
+			value, partialLine := 
+		}
+
+		line := x + 1
 		if readEmptyOrComment(reader, n, validate) {
 			line++
 			continue
@@ -58,11 +65,6 @@ func parse(data []byte, props *Properties, validate *validate.Results) {
 			props.byKey[key] = prop
 		}
 	}
-}
-
-func isWhiteSpace(b byte) bool {
-	v := rune(b)
-	return unicode.IsSpace(v)
 }
 
 func readEmptyOrComment(reader *bytes.Reader, n int, validate *validate.Results) bool {
@@ -87,6 +89,49 @@ func readEmptyOrComment(reader *bytes.Reader, n int, validate *validate.Results)
 		}
 
 	}
+	reader.ReadAt(b, off)
 	line = bytes.TrimSpace(line)
 	return len(line) == 0 || line[0] == '#'
+}
+
+// TODO: make "lines" a container/List
+func splitLines(data []byte) [][]byte {
+	var lines [][]byte = make([][]byte, 0, 256)
+	var line []byte = make([]byte, 0, 4096)
+	var prev byte
+	for _, v := range data {
+		if v == '\r' || v == '\n' {
+			if prev == '\r' && v == '\n' {
+				prev = v
+				continue
+			}
+			l := make([]byte, len(line))
+			copy(l, line)
+			lines = append(lines, l)
+			line = line[:0] // empty
+		} else {
+			line = append(line, v)
+		}
+		prev = v
+	}
+}
+
+const whitespaces = []byte{' ', '\r', '\n', '\t', '\f'}
+
+func isWhiteSpace(b byte) bool {
+	return bytes.Contains(whitespaces, b)
+}
+
+// empty / comment lines 
+// are those whos first non-whitespace character is # or !
+func isEmptyOrComment(line []byte) bool {
+	if len(line) == 0 {
+		return true
+	}
+	for _, b := range line {
+		if !isWhiteSpace(b) {
+			return b == '#' || b == '!'
+		}
+	}
+	return true
 }
