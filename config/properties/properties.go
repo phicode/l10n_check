@@ -1,11 +1,12 @@
 package properties
 
 import (
-	"bytes"
+	//"bytes"
 	"fmt"
 	"io/ioutil"
 	"sort"
-	"unicode"
+	"strings"
+	//"unicode"
 
 	"github.com/PhiCode/l10n_check/validate"
 )
@@ -17,8 +18,16 @@ type Property struct {
 }
 
 type Properties struct {
-	props []Property
+	props []*Property
 	byKey map[string]*Property
+}
+
+type context struct {
+	key      []byte
+	val      []byte
+	props    *Properties
+	validate *validate.Results
+	lineNr   int
 }
 
 func ReadAndParse(filename string) (*Properties, *validate.Results) {
@@ -36,74 +45,129 @@ func ReadAndParse(filename string) (*Properties, *validate.Results) {
 }
 
 func parse(data []byte, props *Properties, validate *validate.Results) {
-	props.props = make([]Property, 0, len(lines)/2)
 	lines := splitLines(data)
+	props.props = make([]*Property, 0, len(lines)/2)
+	props.byKey = make(map[string]*Property)
 	partialLine := false
-	var key, value []byte = nil, nil
+
+	ctx := context{
+		key:      make([]byte, 0, 4096),
+		val:      make([]byte, 0, 4096),
+		props:    props,
+		validate: validate,
+	}
+
 	for x, line := range lines {
 		if !partialLine {
 			if isEmptyOrComment(line) {
 				continue
 			}
-			key, value, partialLine := readKeyValue(line, false)
+			ctx.lineNr = x + 1
+			partialLine = ctx.readStart(line)
 		} else {
-			value, partialLine := readPartialLine()
+			partialLine = ctx.readContinue(line)
 		}
-		//if ()
+		if !partialLine {
+			ctx.finishKeyValue()
+		}
 	}
-	if partialLine && len(key) != 0 {
-		props.add(key, value)
-	}
-
-	/*
-		line := x + 1
-		if readEmptyOrComment(reader, n, validate) {
-			line++
-			continue
-		}
-
-		key, ok := readKey(line, n, validate)
-		if !ok {
-			continue
-		}
-		val, ok := readVal(line, n, validate)
-		if ok {
-			prop := Property{Key: key, Value: val, Line: n}
-			props.props = append(props.props, prop)
-			props.byKey[key] = prop
-		}
-	}*/
+	ctx.finishKeyValue()
 }
 
-/*
-func readEmptyOrComment(reader *bytes.Reader, n int, validate *validate.Results) bool {
-	num := reader.Len()
-	if num <= 0 {
-		return false
+func (ctx *context) appendKey(b byte) { ctx.key = append(ctx.key, b) }
+func (ctx *context) appendVal(b byte) { ctx.val = append(ctx.val, b) }
+func (ctx *context) unreadVal() {
+	if l := len(ctx.val); l > 0 {
+		ctx.val = ctx.val[:l-1]
 	}
-	v1 := reader.ReadByte()
-	if v1 == '\r' {
-		if num > 1 {
-			v2 := reader.ReadByte()
-			if v2 == '\n' {
-				return true
-			} else {
-				reader.UnreadByte()
-				reader.UnreadByte()
-				validate.AddErrorN("\\r is not followed by a \\n", n)
+}
+
+func (ctx *context) readStart(line []byte) bool {
+	// 1. consume whitespace
+	// 2. consume key
+	// 3. consume whitespace and : and =
+	// 4. consume value
+	// return true if last char is \ => partial line
+	state := 1
+	var prev byte
+	for _, v := range line {
+		switch state {
+		case 1:
+			if !isWhiteSpace(v) {
+				ctx.appendKey(v)
+				state = 2
 			}
-		} else {
-			reader.UnreadByte()
-			validate.AddErrorN("\\r at end of file", n)
+		case 2:
+			if isWhiteSpace(v) {
+				state = 3
+			} else {
+				if (v == ':' || v == '=') && prev != '\\' {
+					state = 3
+				} else {
+					ctx.appendKey(v)
+				}
+			}
+		case 3:
+			if !isWhiteSpace(v) && v != ':' && v != '=' {
+				ctx.appendVal(v)
+				state = 4
+			}
+		case 4:
+			ctx.appendVal(v)
 		}
-
+		prev = v
 	}
-	reader.ReadAt(b, off)
-	line = bytes.TrimSpace(line)
-	return len(line) == 0 || line[0] == '#'
-}*/
+	// TODO: handle empty value
+	if prev == '\\' {
+		ctx.unreadVal()
+		return true
+	}
+	return false
+}
 
-// TODO: make "lines" a container/List
+func (ctx *context) readContinue(line []byte) bool {
+	// 1. consume whitespace
+	// 2. consume value
+	// return true if last char is \ => partial line
+	state := 1
+	var prev byte
+	for _, v := range line {
+		switch state {
+		case 1:
+			if !isWhiteSpace(v) {
+				ctx.appendVal(v)
+				state = 2
+			}
+		case 2:
+			ctx.val = append(ctx.val, v)
+		}
+		prev = v
+	}
+	// TODO: handle empty value
+	return prev == '\\'
+}
+
+func (ctx *context) finishKeyValue() {
+	fmt.Printf("line=%d, key='%s', value='%s'\n", ctx.lineNr, ctx.key, ctx.val)
+
+	line := ctx.lineNr
+	key := string(ctx.key)
+	val := string(ctx.val)
+	p := &Property{key, val, line}
+	ctx.props.props = append(ctx.props.props, p)
+	old, contains := ctx.props.byKey[key]
+	if contains {
+		msg := fmt.Sprintf("duplicate key '%s' from line %d overwrite previous value from line %d", key, line, old.Line)
+		ctx.validate.AddWarningN(msg, line)
+	}
+	ctx.props.byKey[key] = p
+
+	// reset read-buffers
+	ctx.key = ctx.key[:0]
+	ctx.val = ctx.val[:0]
+}
+
+// TODO: make "lines" a container.List
 func splitLines(data []byte) [][]byte {
 	var lines [][]byte = make([][]byte, 0, 256)
 	var line []byte = make([]byte, 0, 4096)
@@ -123,23 +187,22 @@ func splitLines(data []byte) [][]byte {
 		}
 		prev = v
 	}
+	return lines
 }
 
 // sorted byte slice
 // 0x09 = tab
+// 0x0A = LF
 // 0x0C = form feed
+// 0x0D = CR
 // 0x20 = space
-//TODO: \r && \n
-var whitespaces = []byte{0x09, 0x0C, 0x20, '\r', '\n'}
-
-func init() {
-	//TODO: implenent sort.Interface for []byte
-	sort.Sort(whitespaces)
-}
+var whitespaces = []byte{0x09, 0x0A, 0x0C, 0x0D, 0x20}
 
 func isWhiteSpace(b byte) bool {
-	i := sort.Search(len(whitespaces), func(i int) bool { return whitespaces[i] >= b })
-	return i < len(data) && whitespaces[i] == b
+	n := len(whitespaces)
+	i := sort.Search(n, func(i int) bool { return whitespaces[i] >= b })
+	//fmt.Printf("isWhitespace(%s): %b\n", b, (i < n && whitespaces[i] == b))
+	return i < n && whitespaces[i] == b
 }
 
 // empty / comment lines 
@@ -154,4 +217,12 @@ func isEmptyOrComment(line []byte) bool {
 		}
 	}
 	return true
+}
+
+func (props *Properties) String() string {
+	parts := make([]string, len(props.props))
+	for i, prop := range props.props {
+		parts[i] = fmt.Sprintf("line %d '%s' = '%s'", prop.Line, prop.Key, prop.Value)
+	}
+	return strings.Join(parts, "\n")
 }

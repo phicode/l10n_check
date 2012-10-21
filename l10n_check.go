@@ -15,23 +15,21 @@ type result struct {
 }
 
 func main() {
-	args := os.Args()
-	l := len(args)
-	if l < 1 {
+	if len(os.Args) < 2 {
 		usage()
 	}
-
-	results := make([]result, 0, l)
-
+	args := os.Args[1:]
+	results := make([]result, 0, len(args))
 	for _, file := range args {
 		props, valid := properties.ReadAndParse(file)
-		results = append(file, results, result{props, valid})
+		results = append(results, result{file, props, valid})
+		fmt.Println("props:", props, "valid:", valid)
 	}
 
 	fmt.Println(results)
 }
 
 func usage() {
-	fmt.Printf("usage: %s <file-name> [<file-name>]...\n", os.Args()[0])
+	fmt.Printf("usage: %s <file-name> [<file-name>]...\n", os.Args[0])
 	os.Exit(1)
 }
