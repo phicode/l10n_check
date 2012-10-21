@@ -164,7 +164,7 @@ func (ctx *context) isEmpty() bool {
 }
 
 func (ctx *context) finishKeyValue() {
-	fmt.Printf("line=%d, key='%s', value='%s'\n", ctx.lineNr, ctx.key, ctx.val)
+	//fmt.Printf("line=%d, key='%s', value='%s'\n", ctx.lineNr, ctx.key, ctx.val)
 
 	line := ctx.lineNr
 	key := string(ctx.key)

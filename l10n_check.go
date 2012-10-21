@@ -22,10 +22,16 @@ func main() {
 	results := make([]result, 0, len(args))
 	for _, file := range args {
 		props, valid := properties.ReadAndParse(file)
-		results = append(results, result{file, props, valid})
-		fmt.Println("props:", props, "valid:", valid)
+		r := result{file, props, valid}
+		results = append(results, r)
+		fmt.Printf(r.String())
 	}
 
+	for _, result := range results {
+		fmt.Printf("%s : %d keys\n",
+			result.file,
+			len(result.props.ByKey))
+	}
 	fmt.Println(results)
 
 	if len(results) > 1 {
@@ -53,4 +59,8 @@ func analyzeKeys(a, b result) {
 			fmt.Println("\t", key)
 		}
 	}
+}
+
+func (r *result) String() string {
+	return fmt.Sprintf("file: %s\nprops:\n%s\nvalid:\n%s\n", r.file, r.props, r.valid)
 }
