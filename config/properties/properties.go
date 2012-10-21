@@ -117,12 +117,7 @@ func (ctx *context) readStart(line []byte) bool {
 		}
 		prev = v
 	}
-	// TODO: handle empty value
-	if prev == '\\' {
-		ctx.unreadVal()
-		return true
-	}
-	return false
+	return ctx.finishLine(prev)
 }
 
 func (ctx *context) readContinue(line []byte) bool {
@@ -143,8 +138,16 @@ func (ctx *context) readContinue(line []byte) bool {
 		}
 		prev = v
 	}
+	return ctx.finishLine(prev)
+}
+
+func (ctx *context) finishLine(prev byte) bool {
 	// TODO: handle empty value
-	return prev == '\\'
+	if prev == '\\' {
+		ctx.unreadVal()
+		return true
+	}
+	return false
 }
 
 func (ctx *context) finishKeyValue() {
