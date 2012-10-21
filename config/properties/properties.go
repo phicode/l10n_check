@@ -57,7 +57,10 @@ func parse(data []byte, props *Properties, validate *validate.Results) {
 		validate: validate,
 	}
 
+	//	fmt.Println("lines:")
+
 	for x, line := range lines {
+		fmt.Println("line", x+1, ":", string(line))
 		if !partialLine {
 			if isEmptyOrComment(line) {
 				continue
