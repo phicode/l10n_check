@@ -20,7 +20,7 @@ type Property struct {
 
 type Properties struct {
 	props []*Property
-	byKey map[string]*Property
+	ByKey map[string]*Property
 }
 
 type context struct {
@@ -48,7 +48,7 @@ func ReadAndParse(filename string) (*Properties, *validate.Results) {
 func parse(data []byte, props *Properties, validate *validate.Results) {
 	lines := splitLines(data)
 	props.props = make([]*Property, 0, lines.Len()/2)
-	props.byKey = make(map[string]*Property)
+	props.ByKey = make(map[string]*Property)
 	partialLine := false
 
 	ctx := context{
@@ -171,12 +171,12 @@ func (ctx *context) finishKeyValue() {
 	val := string(ctx.val)
 	p := &Property{key, val, line}
 	ctx.props.props = append(ctx.props.props, p)
-	old, contains := ctx.props.byKey[key]
+	old, contains := ctx.props.ByKey[key]
 	if contains {
 		msg := fmt.Sprintf("duplicate key '%s' from line %d overwrite previous key-value pair from line %d", key, line, old.Line)
 		ctx.validate.AddWarningN(msg, line)
 	}
-	ctx.props.byKey[key] = p
+	ctx.props.ByKey[key] = p
 
 	// reset read-buffers
 	ctx.key = ctx.key[:0]

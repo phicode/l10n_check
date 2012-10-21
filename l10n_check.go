@@ -27,9 +27,30 @@ func main() {
 	}
 
 	fmt.Println(results)
+
+	if len(results) > 1 {
+		master := results[0]
+		for _, other := range results[1:] {
+			analyzeKeys(master, other)
+			analyzeKeys(other, master)
+		}
+	}
 }
 
 func usage() {
 	fmt.Printf("usage: %s <file-name> [<file-name>]...\n", os.Args[0])
 	os.Exit(1)
+}
+
+func analyzeKeys(a, b result) {
+	diff := false
+	for key := range a.props.ByKey {
+		if _, ok := b.props.ByKey[key]; !ok {
+			if !diff {
+				fmt.Printf("Key(s) in '%s' but not in '%s'\n", a.file, b.file)
+				diff = true
+			}
+			fmt.Println("\t", key)
+		}
+	}
 }
