@@ -2,6 +2,7 @@ package properties
 
 import (
 	//"bytes"
+	"container/list"
 	"fmt"
 	"io/ioutil"
 	"sort"
@@ -46,7 +47,7 @@ func ReadAndParse(filename string) (*Properties, *validate.Results) {
 
 func parse(data []byte, props *Properties, validate *validate.Results) {
 	lines := splitLines(data)
-	props.props = make([]*Property, 0, len(lines)/2)
+	props.props = make([]*Property, 0, lines.Len()/2)
 	props.byKey = make(map[string]*Property)
 	partialLine := false
 
@@ -57,15 +58,18 @@ func parse(data []byte, props *Properties, validate *validate.Results) {
 		validate: validate,
 	}
 
-	//	fmt.Println("lines:")
-
-	for x, line := range lines {
-		fmt.Println("line", x+1, ":", string(line))
+	for nr, e := 1, lines.Front(); e != nil; nr, e = nr+1, e.Next() {
+		line, ok := e.Value.([]byte)
+		if !ok {
+			fmt.Println("internal error: not a byte-slice")
+			continue
+		}
+		//fmt.Println("line", nr, ":", string(line))
 		if !partialLine {
 			if isEmptyOrComment(line) {
 				continue
 			}
-			ctx.lineNr = x + 1
+			ctx.lineNr = nr
 			partialLine = ctx.readStart(line)
 		} else {
 			partialLine = ctx.readContinue(line)
@@ -74,7 +78,9 @@ func parse(data []byte, props *Properties, validate *validate.Results) {
 			ctx.finishKeyValue()
 		}
 	}
-	ctx.finishKeyValue()
+	if !ctx.isEmpty() {
+		ctx.finishKeyValue()
+	}
 }
 
 func (ctx *context) appendKey(b byte) { ctx.key = append(ctx.key, b) }
@@ -153,6 +159,10 @@ func (ctx *context) finishLine(prev byte) bool {
 	return false
 }
 
+func (ctx *context) isEmpty() bool {
+	return len(ctx.key) == 0 && len(ctx.val) == 0
+}
+
 func (ctx *context) finishKeyValue() {
 	fmt.Printf("line=%d, key='%s', value='%s'\n", ctx.lineNr, ctx.key, ctx.val)
 
@@ -174,8 +184,9 @@ func (ctx *context) finishKeyValue() {
 }
 
 // TODO: make "lines" a container.List
-func splitLines(data []byte) [][]byte {
-	var lines [][]byte = make([][]byte, 0, 256)
+func splitLines(data []byte) *list.List {
+	var lines *list.List = list.New()
+	//var lines [][]byte = make([][]byte, 0, 256)
 	var line []byte = make([]byte, 0, 4096)
 	var prev byte
 	for _, v := range data {
@@ -184,16 +195,23 @@ func splitLines(data []byte) [][]byte {
 				prev = v
 				continue
 			}
-			l := make([]byte, len(line))
-			copy(l, line)
-			lines = append(lines, l)
+			pushLine(lines, line)
 			line = line[:0] // empty
 		} else {
 			line = append(line, v)
 		}
 		prev = v
 	}
+	if len(line) > 0 {
+		pushLine(lines, line)
+	}
 	return lines
+}
+
+func pushLine(lines *list.List, line []byte) {
+	l := make([]byte, len(line))
+	copy(l, line)
+	lines.PushBack(l)
 }
 
 // sorted byte slice
