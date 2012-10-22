@@ -3,11 +3,11 @@ package properties
 import (
 	//"bytes"
 	"container/list"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"sort"
 	"strings"
-	//"unicode"
 
 	"github.com/PhiCode/l10n_check/validate"
 )
@@ -31,18 +31,16 @@ type context struct {
 	lineNr   int
 }
 
-func ReadAndParse(filename string) (*Properties, *validate.Results) {
+func ReadAndParse(filename string) (*Properties, *validate.Results, error) {
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
-		msg := fmt.Sprintf("could not open/read file '%s': %s", filename, err.Error())
-		v := new(validate.Results)
-		v.AddError(msg)
-		return nil, v
+		return nil, nil, errors.New(fmt.Sprintf("could not open/read file '%s': %s", filename, err.Error()))
 	}
 	var v validate.Results
+	v.Resource = filename
 	var p Properties
 	parse(data, &p, &v)
-	return &p, &v
+	return &p, &v, nil
 }
 
 func parse(data []byte, props *Properties, validate *validate.Results) {
@@ -249,4 +247,10 @@ func (props *Properties) String() string {
 		parts[i] = fmt.Sprintf("line %d '%s' = '%s'", prop.Line, prop.Key, prop.Value)
 	}
 	return strings.Join(parts, "\n")
+}
+
+func (props *Properties) PrintAll(indent string) {
+	for _, prop := range props.props {
+		fmt.Printf("%sline %d '%s' = '%s'\n", indent, prop.Line, prop.Key, prop.Value)
+	}
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
@@ -14,25 +15,40 @@ type result struct {
 	valid *validate.Results
 }
 
+var verbose *bool = flag.Bool("v", false, "verbose")
+
 func main() {
-	if len(os.Args) < 2 {
+	flag.Parse()
+	if flag.NArg() < 1 {
 		usage()
 	}
-	args := os.Args[1:]
+	args := flag.Args()
 	results := make([]result, 0, len(args))
 	for _, file := range args {
-		props, valid := properties.ReadAndParse(file)
+		props, valid, err := properties.ReadAndParse(file)
+		if props == nil {
+			fmt.Println(err)
+			continue
+		}
 		r := result{file, props, valid}
 		results = append(results, r)
-		fmt.Printf(r.String())
+		//fmt.Printf(r.String())
 	}
 
 	for _, result := range results {
-		fmt.Printf("%s : %d keys\n",
-			result.file,
-			len(result.props.ByKey))
+		fmt.Printf("%s: %d keys\n", result.file, len(result.props.ByKey))
+		if *verbose {
+			result.props.PrintAll("\t")
+		}
 	}
-	fmt.Println(results)
+
+	fmt.Println()
+
+	for _, result := range results {
+		fmt.Println(result.valid)
+	}
+
+	//fmt.Println(results)
 
 	if len(results) > 1 {
 		master := results[0]
@@ -44,7 +60,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Printf("usage: %s <file-name> [<file-name>]...\n", os.Args[0])
+	fmt.Printf("usage: %s [-v] <file-name> [<file-name>]...\n", os.Args[0])
 	os.Exit(1)
 }
 
