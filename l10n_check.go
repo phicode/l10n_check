@@ -76,8 +76,7 @@ func main() {
 	if len(results) > 1 {
 		master := results[0]
 		for _, other := range results[1:] {
-			n := analyzeKeys(master, other)
-			n += analyzeKeys(other, master)
+			n := properties.AnalyzeAll(master.props, other.props)
 			anyFault = anyFault || n > 0
 		}
 	}
@@ -91,36 +90,6 @@ func main() {
 func usage() {
 	fmt.Printf("usage: %s [-v] <file-name> [<file-name>]...\n", os.Args[0])
 	os.Exit(1)
-}
-
-func analyzeKeys(a, b result) int {
-	numFaults := 0
-	diff := false
-	for key := range a.props.ByKey {
-		if _, ok := b.props.ByKey[key]; !ok {
-			if !diff {
-				fmt.Printf("Key(s) in '%s' but not in '%s'\n", a.file, b.file)
-				diff = true
-			}
-			fmt.Println("\t", key)
-			numFaults++
-		}
-	}
-	diff = false
-	for key, vala := range a.props.ByKey {
-		la := len(vala.Value)
-		if valb, ok := b.props.ByKey[key]; ok {
-			if lb := len(valb.Value); (la == 0 && lb > 0) || (la > 0 && lb == 0) {
-				if !diff {
-					fmt.Printf("Key(s) empty/non-empty in '%s' but not in '%s'\n", a.file, b.file)
-					diff = true
-				}
-				fmt.Println("\t", key)
-				numFaults++
-			}
-		}
-	}
-	return numFaults
 }
 
 func (r *result) String() string {

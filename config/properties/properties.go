@@ -41,6 +41,7 @@ type Property struct {
 }
 
 type Properties struct {
+	file  string
 	props []*Property
 	ByKey map[string]*Property
 }
@@ -61,6 +62,7 @@ func ReadAndParse(filename string) (*Properties, *validate.Results, error) {
 	var v validate.Results
 	v.Resource = filename
 	var p Properties
+	p.file = filename
 	parse(data, &p, &v)
 	return &p, &v, nil
 }
