@@ -52,7 +52,8 @@ func AnalyzeUnevenValues(a, b *Properties) int {
 	for key, vala := range a.ByKey {
 		la := len(vala.Value)
 		if valb, ok := b.ByKey[key]; ok {
-			if lb := len(valb.Value); (la == 0 && lb > 0) || (la > 0 && lb == 0) {
+			lb := len(valb.Value)
+			if (la == 0 && lb > 0) || (la > 0 && lb == 0) {
 				if !diff {
 					fmt.Printf("Key(s) empty/non-empty in '%s' but not in '%s'\n", a.file, b.file)
 					diff = true
