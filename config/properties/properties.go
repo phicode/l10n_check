@@ -234,11 +234,11 @@ func isEmptyOrComment(line []byte) bool {
 		return true
 	}
 	for _, b := range line {
-		if !isWhiteSpace(b) {
-			return b == '#' || b == '!'
+		if b == '#' || b == '!' || isWhiteSpace(b) {
+			return true
 		}
 	}
-	return true
+	return false
 }
 
 func (props *Properties) String() string {
