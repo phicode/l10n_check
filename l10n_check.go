@@ -44,19 +44,26 @@ func main() {
 
 	fmt.Println()
 
+	anyFault := true
+
 	for _, result := range results {
 		fmt.Println(result.valid)
+		anyFault = anyFault || result.valid.Any()
 	}
-
-	//fmt.Println(results)
 
 	if len(results) > 1 {
 		master := results[0]
 		for _, other := range results[1:] {
-			analyzeKeys(master, other)
-			analyzeKeys(other, master)
+			n := analyzeKeys(master, other)
+			n += analyzeKeys(other, master)
+			anyFault = anyFault || n > 0
 		}
 	}
+
+	if anyFault {
+		os.Exit(1)
+	}
+	os.Exit(0)
 }
 
 func usage() {
@@ -64,7 +71,8 @@ func usage() {
 	os.Exit(1)
 }
 
-func analyzeKeys(a, b result) {
+func analyzeKeys(a, b result) int {
+	numFaults := 0
 	diff := false
 	for key := range a.props.ByKey {
 		if _, ok := b.props.ByKey[key]; !ok {
@@ -73,8 +81,24 @@ func analyzeKeys(a, b result) {
 				diff = true
 			}
 			fmt.Println("\t", key)
+			numFaults++
 		}
 	}
+	diff = false
+	for key, vala := range a.props.ByKey {
+		la := len(vala.Value)
+		if valb, ok := b.props.ByKey[key]; ok {
+			if lb := len(valb.Value); (la == 0 && lb > 0) || (la > 0 && lb == 0) {
+				if !diff {
+					fmt.Printf("Key(s) empty/non-empty in '%s' but not in '%s'\n", a.file, b.file)
+					diff = true
+				}
+				fmt.Println("\t", key)
+				numFaults++
+			}
+		}
+	}
+	return numFaults
 }
 
 func (r *result) String() string {

@@ -171,7 +171,7 @@ func (ctx *context) finishKeyValue() {
 	ctx.props.props = append(ctx.props.props, p)
 	old, contains := ctx.props.ByKey[key]
 	if contains {
-		msg := fmt.Sprintf("duplicate key '%s' from line %d overwrite previous key-value pair from line %d", key, line, old.Line)
+		msg := fmt.Sprintf("duplicate key '%s' from line %d overwrites previous key-value pair from line %d", key, line, old.Line)
 		ctx.validate.AddWarningN(msg, line)
 	}
 	ctx.props.ByKey[key] = p
