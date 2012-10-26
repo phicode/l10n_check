@@ -23,9 +23,11 @@
 package properties
 
 import (
+	"bytes"
 	"container/list"
 	"fmt"
 	"sort"
+	"unicode"
 
 	"github.com/PhiCode/l10n_check/validate"
 )
@@ -54,12 +56,12 @@ func parse(data []byte, props *Properties, validate *validate.Results) {
 	for nr, e := 1, lines.Front(); e != nil; nr, e = nr+1, e.Next() {
 		line, ok := e.Value.([]byte)
 		if !ok {
-			fmt.Println("internal error: not a byte-slice")
-			continue
+			panic("internal error: not a byte-slice")
 		}
 		//fmt.Println("line", nr, ":", string(line))
 		if !partialLine {
 			if isEmptyOrComment(line) {
+				//fmt.Println(" -> is a comment line")
 				continue
 			}
 			ctx.lineNr = nr
@@ -70,6 +72,7 @@ func parse(data []byte, props *Properties, validate *validate.Results) {
 		if !partialLine {
 			ctx.finishKeyValue()
 		}
+		//fmt.Println(" -> is a key-value line", partialLine, string(ctx.key), string(ctx.val))
 	}
 	if !ctx.isEmpty() {
 		ctx.finishKeyValue()
@@ -90,6 +93,7 @@ func (ctx *context) readStart(line []byte) bool {
 	// 3. consume whitespace and : and =
 	// 4. consume value
 	// return true if last char is \ => partial line
+	// TODO: handle all-key line
 	state := 1
 	var prev byte
 	for _, v := range line {
@@ -144,7 +148,6 @@ func (ctx *context) readContinue(line []byte) bool {
 }
 
 func (ctx *context) finishLine(prev byte) bool {
-	// TODO: handle empty value
 	if prev == '\\' {
 		ctx.unreadVal()
 		return true
@@ -157,11 +160,10 @@ func (ctx *context) isEmpty() bool {
 }
 
 func (ctx *context) finishKeyValue() {
-	//fmt.Printf("line=%d, key='%s', value='%s'\n", ctx.lineNr, ctx.key, ctx.val)
-
 	line := ctx.lineNr
-	key := string(ctx.key)
-	val := string(ctx.val)
+	key := ctx.sliceToStr(ctx.key)
+	val := ctx.sliceToStr(ctx.val)
+
 	p := &Property{key, val, line}
 	ctx.props.props = append(ctx.props.props, p)
 	old, contains := ctx.props.ByKey[key]
@@ -174,6 +176,112 @@ func (ctx *context) finishKeyValue() {
 	// reset read-buffers
 	ctx.key = ctx.key[:0]
 	ctx.val = ctx.val[:0]
+}
+
+func (ctx *context) sliceToStr(xs []byte) string {
+	l := len(xs)
+	if l == 0 {
+		return ""
+	}
+	// 1. reading regular characters
+	// 2. reading char after /
+	// 3. reading unicode value (\uxxxx)
+	// 4. skip n chars, switch to 1 afterwards
+	var buf bytes.Buffer
+	state := 1
+	skip := 0
+	for idx, x := range xs {
+		switch state {
+		case 1:
+			if x == '\\' {
+				state = 2
+			} else {
+				addRune(&buf, x, ctx.lineNr, idx, ctx.validate)
+			}
+		case 2:
+			switch x {
+			case 't':
+				buf.WriteRune('\t')
+				state = 1
+			case 'n':
+				buf.WriteRune('\n')
+				state = 1
+			case 'r':
+				buf.WriteRune('\r')
+				state = 1
+			case 'f':
+				buf.WriteRune('\f')
+				state = 1
+			case 'u': // unicode sequence
+				state = 3
+			default:
+				addRune(&buf, x, ctx.lineNr, idx, ctx.validate)
+				state = 1
+			}
+		case 3:
+			// idx: 012345
+			// val: \uffff
+			// pos:   ^ => rem = len - idx
+			// =>  rem = 6 - 2 = 4
+			remaining := l - idx
+			if remaining < 4 {
+				msg := fmt.Sprintf("unicode sequence start found (\\u) but there are too few remaining bytes in the value")
+				ctx.validate.AddErrorN(msg, ctx.lineNr)
+			} else {
+				unicodeSeq := xs[idx:(idx + 4)]
+				ctx.parseUnicodeSeq(unicodeSeq, &buf)
+			}
+			// skip the next 3 chars since we already read them
+			skip = 3
+			state = 4
+		case 4:
+			skip--
+			if skip == 0 {
+				state = 1
+			}
+		}
+	}
+	return buf.String()
+}
+
+func addRune(buf *bytes.Buffer, x byte, line int, idx int, res *validate.Results) {
+	//TODO: verify graphic and convert to utf8
+	r := rune(x)
+	if unicode.IsSpace(r) || unicode.IsGraphic(r) {
+		buf.WriteRune(r)
+	} else {
+		msg := fmt.Sprintf("non-graphic character found, code: %d, index in value: %d", int(x), idx)
+		res.AddErrorN(msg, line)
+	}
+}
+
+func (ctx *context) parseUnicodeSeq(xs []byte, buf *bytes.Buffer) {
+	var symbol uint32
+	for _, x := range xs {
+		if v, ok := fromHexChar(x); ok {
+			symbol = symbol*16 + v
+		} else {
+			msg := fmt.Sprintf("invalid unicode sequence: %s", string(xs))
+			ctx.validate.AddErrorN(msg, ctx.lineNr)
+			return
+		}
+	}
+	//fmt.Printf("unicode char: %x\n", symbol)
+	// TODO: validate symbol
+	buf.WriteRune(rune(symbol))
+}
+
+func fromHexChar(x byte) (hex uint32, ok bool) {
+	if x >= '0' && x <= '9' {
+		return uint32(x - '0'), true
+	}
+	if x >= 'a' && x <= 'f' {
+		return uint32(x - 'a'), true
+	}
+	if x >= 'A' && x <= 'F' {
+		return uint32(x - 'A'), true
+	}
+	return 0, false
 }
 
 // TODO: make "lines" a container.List
@@ -229,9 +337,10 @@ func isEmptyOrComment(line []byte) bool {
 		return true
 	}
 	for _, b := range line {
-		if b == '#' || b == '!' || isWhiteSpace(b) {
-			return true
+		if !isWhiteSpace(b) {
+			return b == '#' || b == '!'
 		}
 	}
-	return false
+	// all whitespace line
+	return true
 }
