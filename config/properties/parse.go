@@ -266,7 +266,7 @@ func (ctx *context) parseUnicodeSeq(xs []byte, buf *bytes.Buffer) {
 			return
 		}
 	}
-	//fmt.Printf("unicode char: %x\n", symbol)
+	//	fmt.Printf("unicode char: %x\n", symbol)
 	// TODO: validate symbol
 	buf.WriteRune(rune(symbol))
 }
@@ -276,10 +276,10 @@ func fromHexChar(x byte) (hex uint32, ok bool) {
 		return uint32(x - '0'), true
 	}
 	if x >= 'a' && x <= 'f' {
-		return uint32(x - 'a'), true
+		return uint32(x-'a') + 10, true
 	}
 	if x >= 'A' && x <= 'F' {
-		return uint32(x - 'A'), true
+		return uint32(x-'A') + 10, true
 	}
 	return 0, false
 }
