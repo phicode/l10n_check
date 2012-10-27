@@ -44,12 +44,21 @@ func main() {
 	if flag.NArg() < 1 {
 		usage()
 	}
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Println("caught error:", err)
+			os.Exit(3)
+		}
+	}()
+
+	anyFault := false
 	args := flag.Args()
 	results := make([]result, 0, len(args))
 	for _, file := range args {
 		props, valid, err := properties.ReadAndParse(file)
-		if props == nil {
+		if err != nil {
 			fmt.Println(err)
+			anyFault = true
 			continue
 		}
 		r := result{file, props, valid}
@@ -66,8 +75,6 @@ func main() {
 
 	fmt.Println()
 
-	anyFault := true
-
 	for _, result := range results {
 		fmt.Println(result.valid)
 		anyFault = anyFault || result.valid.Any()
@@ -82,13 +89,13 @@ func main() {
 	}
 
 	if anyFault {
-		os.Exit(1)
+		os.Exit(2)
 	}
 	os.Exit(0)
 }
 
 func usage() {
-	fmt.Printf("usage: %s [-v] <file-name> [<file-name>]...\n", os.Args[0])
+	fmt.Printf("usage: %s [-v] <file-name> [<file-name> ...]\n", os.Args[0])
 	os.Exit(1)
 }
 
