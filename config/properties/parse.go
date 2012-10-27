@@ -58,10 +58,10 @@ func parse(data []byte, props *Properties, validate *validate.Results) {
 		if !ok {
 			panic("internal error: not a byte-slice")
 		}
-		//fmt.Println("line", nr, ":", string(line))
+		// fmt.Println("line", nr, ":", string(line))
 		if !partialLine {
 			if isEmptyOrComment(line) {
-				//fmt.Println(" -> is a comment line")
+				// fmt.Println(" -> is a comment line")
 				continue
 			}
 			ctx.lineNr = nr
@@ -72,7 +72,7 @@ func parse(data []byte, props *Properties, validate *validate.Results) {
 		if !partialLine {
 			ctx.finishKeyValue()
 		}
-		//fmt.Println(" -> is a key-value line", partialLine, string(ctx.key), string(ctx.val))
+		// fmt.Println(" -> is a key-value line", partialLine, string(ctx.key), string(ctx.val))
 	}
 	if !ctx.isEmpty() {
 		ctx.finishKeyValue()
@@ -162,6 +162,7 @@ func (ctx *context) isEmpty() bool {
 func (ctx *context) finishKeyValue() {
 	line := ctx.lineNr
 	key := ctx.sliceToStr(ctx.key)
+	// TODO: trim trailing space from key
 	val := ctx.sliceToStr(ctx.val)
 
 	p := &Property{key, val, line}
@@ -183,12 +184,13 @@ func (ctx *context) sliceToStr(xs []byte) string {
 	if l == 0 {
 		return ""
 	}
+	// states
 	// 1. reading regular characters
-	// 2. reading char after /
+	// 2. reading char after \
 	// 3. reading unicode value (\uxxxx)
 	// 4. skip n chars, switch to 1 afterwards
-	var buf bytes.Buffer
 	state := 1
+	var buf bytes.Buffer
 	skip := 0
 	for idx, x := range xs {
 		switch state {
@@ -196,7 +198,7 @@ func (ctx *context) sliceToStr(xs []byte) string {
 			if x == '\\' {
 				state = 2
 			} else {
-				addRune(&buf, x, ctx.lineNr, idx, ctx.validate)
+				ctx.addRune(&buf, x, idx)
 			}
 		case 2:
 			switch x {
@@ -215,7 +217,7 @@ func (ctx *context) sliceToStr(xs []byte) string {
 			case 'u': // unicode sequence
 				state = 3
 			default:
-				addRune(&buf, x, ctx.lineNr, idx, ctx.validate)
+				ctx.addRune(&buf, x, idx)
 				state = 1
 			}
 		case 3:
@@ -244,14 +246,13 @@ func (ctx *context) sliceToStr(xs []byte) string {
 	return buf.String()
 }
 
-func addRune(buf *bytes.Buffer, x byte, line int, idx int, res *validate.Results) {
-	//TODO: verify graphic and convert to utf8
+func (ctx *context) addRune(buf *bytes.Buffer, x byte, idx int) {
 	r := rune(x)
 	if unicode.IsSpace(r) || unicode.IsGraphic(r) {
 		buf.WriteRune(r)
 	} else {
 		msg := fmt.Sprintf("non-graphic character found, code: %d, index in value: %d", int(x), idx)
-		res.AddErrorN(msg, line)
+		ctx.validate.AddErrorN(msg, ctx.lineNr)
 	}
 }
 
@@ -266,7 +267,7 @@ func (ctx *context) parseUnicodeSeq(xs []byte, buf *bytes.Buffer) {
 			return
 		}
 	}
-	//	fmt.Printf("unicode char: %x\n", symbol)
+	// fmt.Printf("unicode char: %x\n", symbol)
 	// TODO: validate symbol
 	buf.WriteRune(rune(symbol))
 }
@@ -287,7 +288,7 @@ func fromHexChar(x byte) (hex uint32, ok bool) {
 // TODO: make "lines" a container.List
 func splitLines(data []byte) *list.List {
 	var lines *list.List = list.New()
-	//var lines [][]byte = make([][]byte, 0, 256)
+	// var lines [][]byte = make([][]byte, 0, 256)
 	var line []byte = make([]byte, 0, 4096)
 	var prev byte
 	for _, v := range data {
@@ -326,7 +327,7 @@ var whitespaces = []byte{0x09, 0x0A, 0x0C, 0x0D, 0x20}
 func isWhiteSpace(b byte) bool {
 	n := len(whitespaces)
 	i := sort.Search(n, func(i int) bool { return whitespaces[i] >= b })
-	//fmt.Printf("isWhitespace(%s): %b\n", b, (i < n && whitespaces[i] == b))
+	// fmt.Printf("isWhitespace(%s): %b\n", b, (i < n && whitespaces[i] == b))
 	return i < n && whitespaces[i] == b
 }
 
