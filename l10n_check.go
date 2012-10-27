@@ -40,6 +40,8 @@ type result struct {
 var verbose *bool = flag.Bool("v", false, "verbose")
 
 func main() {
+	flag.Usage = usage
+
 	flag.Parse()
 	if flag.NArg() < 1 {
 		usage()
@@ -96,6 +98,7 @@ func main() {
 
 func usage() {
 	fmt.Printf("usage: %s [-v] <file-name> [<file-name> ...]\n", os.Args[0])
+	flag.PrintDefaults()
 	os.Exit(1)
 }
 
