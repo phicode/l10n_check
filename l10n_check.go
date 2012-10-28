@@ -37,14 +37,17 @@ type result struct {
 	valid *validate.Results
 }
 
-var verbose *bool = flag.Bool("v", false, "verbose")
+var verbose *bool = flag.Bool("v", false, "enable verbose mode")
 
 func main() {
-	flag.Usage = usage
-
+	flag.Usage = func() {
+		fmt.Printf("usage: %s [-v] <file-name> [<file-name> ...]\n", os.Args[0])
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
 	flag.Parse()
 	if flag.NArg() < 1 {
-		usage()
+		flag.Usage()
 	}
 	defer func() {
 		if err := recover(); err != nil {
@@ -94,12 +97,6 @@ func main() {
 		os.Exit(2)
 	}
 	os.Exit(0)
-}
-
-func usage() {
-	fmt.Printf("usage: %s [-v] <file-name> [<file-name> ...]\n", os.Args[0])
-	flag.PrintDefaults()
-	os.Exit(1)
 }
 
 func (r *result) String() string {
