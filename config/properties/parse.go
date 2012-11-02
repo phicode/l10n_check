@@ -44,7 +44,6 @@ func parse(data []byte, props *Properties, validate *validate.Results) {
 	lines := splitLines(data)
 	props.props = make([]*Property, 0, lines.Len()/2)
 	props.ByKey = make(map[string]*Property)
-	partialLine := false
 
 	ctx := context{
 		key:      make([]byte, 0, 4096),
@@ -53,26 +52,30 @@ func parse(data []byte, props *Properties, validate *validate.Results) {
 		validate: validate,
 	}
 
+	var res parseResult
 	for nr, e := 1, lines.Front(); e != nil; nr, e = nr+1, e.Next() {
 		line, ok := e.Value.([]byte)
 		if !ok {
 			panic("internal error: not a byte-slice")
 		}
 		// fmt.Println("line", nr, ":", string(line))
-		if !partialLine {
+		if res != PARTIAL_LINE {
 			if isEmptyOrComment(line) {
 				// fmt.Println(" -> is a comment line")
 				continue
 			}
 			ctx.lineNr = nr
-			partialLine = ctx.readStart(line)
+			res = ctx.readStart(line)
 		} else {
-			partialLine = ctx.readContinue(line)
+			res = ctx.readContinue(line)
 		}
-		if !partialLine {
+		if res == KEY_VALUE {
 			ctx.finishKeyValue()
+		} else if res == ONLY_KEY {
+			msg := fmt.Sprintf("line contains only a key: '%s'", string(ctx.key))
+			validate.AddErrorN(msg, nr)
+			ctx.reset()
 		}
-		// fmt.Println(" -> is a key-value line", partialLine, string(ctx.key), string(ctx.val))
 	}
 	if !ctx.isEmpty() {
 		ctx.finishKeyValue()
@@ -87,7 +90,15 @@ func (ctx *context) unreadVal() {
 	}
 }
 
-func (ctx *context) readStart(line []byte) bool {
+type parseResult int
+
+const (
+	KEY_VALUE    parseResult = iota // finished key-value pair
+	PARTIAL_LINE                    // key and partial value, which continues on the next line
+	ONLY_KEY                        // line contained only a key
+)
+
+func (ctx *context) readStart(line []byte) parseResult {
 	// 1. consume whitespace
 	// 2. consume key
 	// 3. consume whitespace and : and =
@@ -123,10 +134,13 @@ func (ctx *context) readStart(line []byte) bool {
 		}
 		prev = v
 	}
+	if state != 4 {
+		return ONLY_KEY
+	}
 	return ctx.finishLine(prev)
 }
 
-func (ctx *context) readContinue(line []byte) bool {
+func (ctx *context) readContinue(line []byte) parseResult {
 	// 1. consume whitespace
 	// 2. consume value
 	// return true if last char is \ => partial line
@@ -147,12 +161,12 @@ func (ctx *context) readContinue(line []byte) bool {
 	return ctx.finishLine(prev)
 }
 
-func (ctx *context) finishLine(prev byte) bool {
+func (ctx *context) finishLine(prev byte) parseResult {
 	if prev == '\\' {
 		ctx.unreadVal()
-		return true
+		return PARTIAL_LINE
 	}
-	return false
+	return KEY_VALUE
 }
 
 func (ctx *context) isEmpty() bool {
@@ -173,7 +187,10 @@ func (ctx *context) finishKeyValue() {
 		ctx.validate.AddWarningN(msg, line)
 	}
 	ctx.props.ByKey[key] = p
+	ctx.reset()
+}
 
+func (ctx *context) reset() {
 	// reset read-buffers
 	ctx.key = ctx.key[:0]
 	ctx.val = ctx.val[:0]
