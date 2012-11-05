@@ -71,6 +71,31 @@ func resAppend(orig []Result, res Result) []Result {
 	return append(orig, res)
 }
 
+func (r *Results) Print(nowarn bool) int {
+	var buf bytes.Buffer
+	buf.WriteString("file: ")
+	buf.WriteString(r.Resource)
+	buf.WriteByte('\n')
+	n := 0
+	if l := len(r.errors); l > 0 {
+		add("errors:\n", &buf, r.errors)
+		n += l
+	}
+	if l := len(r.warnings); !nowarn && l > 0 {
+		add("warnings:\n", &buf, r.warnings)
+		n += l
+	}
+	if n == 0 {
+		if nowarn {
+			buf.WriteString("\tno errors\n")
+		} else {
+			buf.WriteString("\tno warnings or errors\n")
+		}
+	}
+	fmt.Println(buf.String())
+	return n
+}
+
 func (r *Result) String() string {
 	if r.Line == 0 {
 		return r.Msg

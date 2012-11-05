@@ -27,6 +27,7 @@ import (
 	"container/list"
 	"fmt"
 	"sort"
+	"strings"
 	"unicode"
 
 	"github.com/PhiCode/l10n_check/validate"
@@ -178,8 +179,13 @@ func (ctx *context) finishKeyValue() {
 	key := ctx.sliceToStr(ctx.key)
 	// TODO: trim trailing space from key
 	val := ctx.sliceToStr(ctx.val)
+	trimmed := strings.TrimSpace(val)
+	if len(val) > len(trimmed) {
+		msg := fmt.Sprintf("value for key '%s' contains leading/trailing spaces", key)
+		ctx.validate.AddWarningN(msg, line)
+	}
 
-	p := &Property{key, val, line}
+	p := &Property{key, trimmed, line}
 	ctx.props.props = append(ctx.props.props, p)
 	old, contains := ctx.props.ByKey[key]
 	if contains {

@@ -37,7 +37,10 @@ type result struct {
 	valid *validate.Results
 }
 
-var verbose *bool = flag.Bool("v", false, "enable verbose mode")
+var (
+	verbose *bool = flag.Bool("v", false, "enable verbose mode")
+	nowarn  *bool = flag.Bool("nowarn", false, "do not print warnings")
+)
 
 func main() {
 	flag.Usage = func() {
@@ -81,8 +84,8 @@ func main() {
 	fmt.Println()
 
 	for _, result := range results {
-		fmt.Println(result.valid)
-		anyFault = anyFault || result.valid.Any()
+		n := result.valid.Print(*nowarn)
+		anyFault = anyFault || n > 0
 	}
 
 	if len(results) > 1 {
