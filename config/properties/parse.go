@@ -26,7 +26,6 @@ import (
 	"bytes"
 	"container/list"
 	"fmt"
-	"sort"
 	"strings"
 	"unicode"
 
@@ -308,10 +307,8 @@ func fromHexChar(x byte) (hex uint32, ok bool) {
 	return 0, false
 }
 
-// TODO: make "lines" a container.List
 func splitLines(data []byte) *list.List {
 	var lines *list.List = list.New()
-	// var lines [][]byte = make([][]byte, 0, 256)
 	var line []byte = make([]byte, 0, 4096)
 	var prev byte
 	for _, v := range data {
@@ -339,19 +336,16 @@ func pushLine(lines *list.List, line []byte) {
 	lines.PushBack(l)
 }
 
-// sorted byte slice
-// 0x09 = tab
-// 0x0A = LF
-// 0x0C = form feed
-// 0x0D = CR
-// 0x20 = space
-var whitespaces = []byte{0x09, 0x0A, 0x0C, 0x0D, 0x20}
+const (
+	WS_TAB byte = 0x09 // tab
+	WS_LF       = 0x0A // line feed
+	WS_FF       = 0x0C // form feed
+	WS_CR       = 0x0D // carriage return
+	WS_SP       = 0x20 // space
+)
 
 func isWhiteSpace(b byte) bool {
-	n := len(whitespaces)
-	i := sort.Search(n, func(i int) bool { return whitespaces[i] >= b })
-	// fmt.Printf("isWhitespace(%s): %b\n", b, (i < n && whitespaces[i] == b))
-	return i < n && whitespaces[i] == b
+	return b == WS_TAB || b == WS_LF || b == WS_FF || b == WS_CR || b == WS_SP
 }
 
 // empty / comment lines 
