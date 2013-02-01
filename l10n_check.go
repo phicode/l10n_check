@@ -52,12 +52,6 @@ func main() {
 	if flag.NArg() < 1 {
 		flag.Usage()
 	}
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Println("caught error:", err)
-			os.Exit(3)
-		}
-	}()
 
 	anyFault := false
 	args := flag.Args()
@@ -71,7 +65,6 @@ func main() {
 		}
 		r := result{file, props, valid}
 		results = append(results, r)
-		//fmt.Printf(r.String())
 	}
 
 	for _, result := range results {
@@ -99,7 +92,6 @@ func main() {
 	if anyFault {
 		os.Exit(2)
 	}
-	os.Exit(0)
 }
 
 func (r *result) String() string {
