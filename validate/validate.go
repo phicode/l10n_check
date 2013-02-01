@@ -42,33 +42,23 @@ type Result struct {
 }
 
 func (r *Results) AddWarning(msg string) {
-	r.warnings = resAppend(r.warnings, Result{Msg: msg})
+	r.warnings = append(r.warnings, Result{Msg: msg})
 }
 
 func (r *Results) AddWarningN(msg string, line int) {
-	r.warnings = resAppend(r.warnings, Result{Msg: msg, Line: line})
+	r.warnings = append(r.warnings, Result{Msg: msg, Line: line})
 }
 
 func (r *Results) AddError(msg string) {
-	r.errors = resAppend(r.errors, Result{Msg: msg})
+	r.errors = append(r.errors, Result{Msg: msg})
 }
 
 func (r *Results) AddErrorN(msg string, line int) {
-	r.errors = resAppend(r.errors, Result{Msg: msg, Line: line})
+	r.errors = append(r.errors, Result{Msg: msg, Line: line})
 }
 
 func (r *Results) Any() bool {
 	return len(r.warnings) > 0 || len(r.errors) > 0
-}
-
-func resAppend(orig []Result, res Result) []Result {
-	l, c := len(orig), cap(orig)
-	if l >= c {
-		xs := make([]Result, (c+1)*2)
-		copy(xs, orig)
-		orig = xs[:l]
-	}
-	return append(orig, res)
 }
 
 func (r *Results) Print(nowarn bool) int {
