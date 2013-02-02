@@ -25,19 +25,17 @@ package properties
 import "fmt"
 
 func AnalyzeAll(a, b *Properties) int {
-	return AnalyzeUnevenValues(a, b) +
+	return AnalyzeEmptyValues(a, b) +
 		AnalyzeDupKeys(a, b) +
 		AnalyzeDupKeys(b, a)
 }
 
 func AnalyzeDupKeys(a, b *Properties) int {
 	numFaults := 0
-	diff := false
 	for key := range a.ByKey {
 		if _, ok := b.ByKey[key]; !ok {
-			if !diff {
+			if numFaults == 0 {
 				fmt.Printf("Key(s) in '%s' but not in '%s'\n", a.file, b.file)
-				diff = true
 			}
 			fmt.Println("\t", key)
 			numFaults++
@@ -46,17 +44,15 @@ func AnalyzeDupKeys(a, b *Properties) int {
 	return numFaults
 }
 
-func AnalyzeUnevenValues(a, b *Properties) int {
+func AnalyzeEmptyValues(a, b *Properties) int {
 	numFaults := 0
-	diff := false
 	for key, vala := range a.ByKey {
 		la := len(vala.Value)
 		if valb, ok := b.ByKey[key]; ok {
 			lb := len(valb.Value)
 			if (la == 0 && lb > 0) || (la > 0 && lb == 0) {
-				if !diff {
+				if numFaults == 0 {
 					fmt.Printf("Key(s) empty/non-empty in '%s' but not in '%s'\n", a.file, b.file)
-					diff = true
 				}
 				fmt.Println("\t", key)
 				numFaults++
