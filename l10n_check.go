@@ -38,14 +38,21 @@ type result struct {
 }
 
 var (
-	verbose *bool = flag.Bool("v", false, "enable verbose mode")
-	nowarn  *bool = flag.Bool("nowarn", false, "do not print warnings")
+	verbose = flag.Bool("v", false, "enable verbose mode")
+	nowarn  = flag.Bool("nowarn", false, "do not print warnings")
 )
+
+const VERSION = "1.0"
 
 func main() {
 	flag.Usage = func() {
-		fmt.Printf("usage: %s [-v] <file-name> [<file-name> ...]\n", os.Args[0])
+		fmt.Println("l10n_check version", VERSION)
+		fmt.Println()
+		fmt.Println("usage:")
+		fmt.Printf("  %s [options] <file-name> [<file-name> ...]\n", os.Args[0])
+		fmt.Println("options:")
 		flag.PrintDefaults()
+		fmt.Println()
 		os.Exit(1)
 	}
 	flag.Parse()
