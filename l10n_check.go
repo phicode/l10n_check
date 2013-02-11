@@ -27,7 +27,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/PhiCode/l10n_check/config/properties"
+	"github.com/PhiCode/l10n_check/properties"
 	"github.com/PhiCode/l10n_check/validate"
 )
 
