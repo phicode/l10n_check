@@ -61,29 +61,25 @@ func (r *Results) Any() bool {
 	return len(r.warnings) > 0 || len(r.errors) > 0
 }
 
-func (r *Results) Print(nowarn bool) int {
+func (r *Results) Print(nowarn bool) (rv int) {
 	var buf bytes.Buffer
-	buf.WriteString("file: ")
 	buf.WriteString(r.Resource)
-	buf.WriteByte('\n')
-	n := 0
-	if l := len(r.errors); l > 0 {
-		add("errors:\n", &buf, r.errors)
-		n += l
-	}
-	if l := len(r.warnings); !nowarn && l > 0 {
-		add("warnings:\n", &buf, r.warnings)
-		n += l
-	}
-	if n == 0 {
-		if nowarn {
-			buf.WriteString("\tno errors\n")
-		} else {
-			buf.WriteString("\tno warnings or errors\n")
+
+	if r.Any() {
+		nw, ne := len(r.warnings), len(r.errors)
+		buf.WriteString(fmt.Sprintf(" - %d errors, %d warnings\n", ne, nw))
+		if ne > 0 {
+			add("errors:\n", &buf, r.errors)
 		}
+		if nw > 0 && !nowarn {
+			add("warnings:\n", &buf, r.warnings)
+		}
+		rv = nw + ne
+	} else {
+		buf.WriteString(" - no warnings or errors")
 	}
 	fmt.Println(buf.String())
-	return n
+	return
 }
 
 func (r *Result) String() string {

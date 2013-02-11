@@ -38,21 +38,25 @@ type result struct {
 }
 
 var (
-	verbose = flag.Bool("v", false, "enable verbose mode")
-	nowarn  = flag.Bool("nowarn", false, "do not print warnings")
+	verbose = flag.Bool("v", false, "")
+	nowarn  = flag.Bool("nowarn", false, "")
 )
 
 const VERSION = "1.0"
 
+const USAGE = `l10n_check version %s
+usage:
+  %s [options] <file-name> [<file-name> ...]
+
+options:
+  -v       enable verbose mode
+  -nowarn  do not print warnings
+
+`
+
 func main() {
 	flag.Usage = func() {
-		fmt.Println("l10n_check version", VERSION)
-		fmt.Println()
-		fmt.Println("usage:")
-		fmt.Printf("  %s [options] <file-name> [<file-name> ...]\n", os.Args[0])
-		fmt.Println("options:")
-		flag.PrintDefaults()
-		fmt.Println()
+		fmt.Fprintf(os.Stderr, USAGE, VERSION, os.Args[0])
 		os.Exit(1)
 	}
 	flag.Parse()
@@ -75,7 +79,7 @@ func main() {
 	}
 
 	for _, result := range results {
-		fmt.Printf("%s: %d keys\n", result.file, len(result.props.ByKey))
+		fmt.Printf("%s - %d keys\n", result.file, len(result.props.ByKey))
 		if *verbose {
 			result.props.PrintAll("\t")
 		}
@@ -85,7 +89,10 @@ func main() {
 
 	for _, result := range results {
 		n := result.valid.Print(*nowarn)
-		anyFault = anyFault || n > 0
+		if n > 0 {
+			anyFault = true
+			fmt.Println()
+		}
 	}
 
 	if len(results) > 1 {

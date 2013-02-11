@@ -1,0 +1,12 @@
+test/bad.in - 9 keys
+
+test/bad.in - 3 errors, 2 warnings
+errors:
+	Line 32: line contains only a key: 'OnlyKey'
+	Line 33: line contains only a key: 'OnlyKey2\:'
+	Line 34: line contains only a key: 'OnlyKey3\='
+warnings:
+	Line 5: key 'A' overwrites line 2
+	Line 27: value of key 'G:=' contains unescaped trailing spaces
+
+

@@ -1,0 +1,8 @@
+l10n_check version 1.0
+usage:
+  bin/l10n_check [options] <file-name> [<file-name> ...]
+
+options:
+  -v       enable verbose mode
+  -nowarn  do not print warnings
+

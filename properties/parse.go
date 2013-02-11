@@ -177,7 +177,7 @@ func (ctx *context) finishKeyValue() {
 	val, endEscaped := ctx.sliceToStr(ctx.val)
 	// due to the layout of property files there can only be unescaped whitespace at the end of a value
 	if !endEscaped && hasTrailingWhitespace(val) {
-		msg := fmt.Sprintf("value for key '%s' contains unescaped trailing spaces", key)
+		msg := fmt.Sprintf("value of key '%s' contains unescaped trailing spaces", key)
 		ctx.validate.AddWarningN(msg, line)
 	}
 
@@ -185,7 +185,7 @@ func (ctx *context) finishKeyValue() {
 	ctx.props.props = append(ctx.props.props, p)
 	old, contains := ctx.props.ByKey[key]
 	if contains {
-		msg := fmt.Sprintf("duplicate key '%s' from line %d overwrites previous key-value pair from line %d", key, line, old.Line)
+		msg := fmt.Sprintf("key '%s' overwrites line %d", key, old.Line)
 		ctx.validate.AddWarningN(msg, line)
 	}
 	ctx.props.ByKey[key] = p

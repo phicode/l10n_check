@@ -1,0 +1,11 @@
+test/two_a.in - 2 keys
+test/two_b.in - 2 keys
+
+test/two_a.in - no warnings or errors
+test/two_b.in - no warnings or errors
+
+Key(s) in 'test/two_a.in' but not in 'test/two_b.in'
+	b
+
+Key(s) in 'test/two_b.in' but not in 'test/two_a.in'
+	c

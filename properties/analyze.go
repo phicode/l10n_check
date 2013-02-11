@@ -35,9 +35,10 @@ func AnalyzeDupKeys(a, b *Properties) int {
 	for key := range a.ByKey {
 		if _, ok := b.ByKey[key]; !ok {
 			if numFaults == 0 {
+				fmt.Println()
 				fmt.Printf("Key(s) in '%s' but not in '%s'\n", a.file, b.file)
 			}
-			fmt.Println("\t", key)
+			fmt.Printf("\t%s\n", key)
 			numFaults++
 		}
 	}
@@ -54,7 +55,7 @@ func AnalyzeEmptyValues(a, b *Properties) int {
 				if numFaults == 0 {
 					fmt.Printf("Key(s) empty/non-empty in '%s' but not in '%s'\n", a.file, b.file)
 				}
-				fmt.Println("\t", key)
+				fmt.Printf("\t%s\n", key)
 				numFaults++
 			}
 		}

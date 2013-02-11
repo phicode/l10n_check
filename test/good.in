@@ -1,0 +1,2 @@
+# for checking the 0 return value on valid property files
+a=b
