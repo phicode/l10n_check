@@ -33,11 +33,14 @@ import (
 )
 
 type context struct {
-	key      []byte
-	val      []byte
+	// current state
+	lineNr int
+	key    []byte
+	val    []byte
+
+	// overall state
 	props    *Properties
 	validate *validate.Results
-	lineNr   int
 }
 
 func parse(data []byte, props *Properties, validate *validate.Results) {
@@ -53,15 +56,13 @@ func parse(data []byte, props *Properties, validate *validate.Results) {
 	}
 
 	var res parseResult
-	for nr, e := 1, lines.Front(); e != nil; nr, e = nr+1, e.Next() {
-		line, ok := e.Value.([]byte)
+	for nr, iter := 1, lines.Front(); iter != nil; nr, iter = nr+1, iter.Next() {
+		line, ok := iter.Value.([]byte)
 		if !ok {
 			panic("internal error: not a byte-slice")
 		}
-		// fmt.Println("line", nr, ":", string(line))
 		if res != PARTIAL_LINE {
 			if isEmptyOrComment(line) {
-				// fmt.Println(" -> is a comment line")
 				continue
 			}
 			ctx.lineNr = nr
@@ -101,10 +102,8 @@ const (
 func (ctx *context) readStart(line []byte) parseResult {
 	// 1. consume whitespace
 	// 2. consume key
-	// 3. consume whitespace and : and =
+	// 3. consume whitespace, :, =
 	// 4. consume value
-	// return true if last char is \ => partial line
-	// TODO: handle all-key line
 	state := 1
 	var prev byte
 	for _, v := range line {
@@ -143,7 +142,6 @@ func (ctx *context) readStart(line []byte) parseResult {
 func (ctx *context) readContinue(line []byte) parseResult {
 	// 1. consume whitespace
 	// 2. consume value
-	// return true if last char is \ => partial line
 	state := 1
 	var prev byte
 	for _, v := range line {
@@ -175,16 +173,15 @@ func (ctx *context) isEmpty() bool {
 
 func (ctx *context) finishKeyValue() {
 	line := ctx.lineNr
-	key := ctx.sliceToStr(ctx.key)
-	// TODO: trim trailing space from key
-	val := ctx.sliceToStr(ctx.val)
-	trimmed := strings.TrimSpace(val)
-	if len(val) > len(trimmed) {
-		msg := fmt.Sprintf("value for key '%s' contains leading/trailing spaces", key)
+	key, _ := ctx.sliceToStr(ctx.key)
+	val, endEscaped := ctx.sliceToStr(ctx.val)
+	// due to the layout of property files there can only be unescaped whitespace at the end of a value
+	if !endEscaped && hasTrailingWhitespace(val) {
+		msg := fmt.Sprintf("value for key '%s' contains unescaped trailing spaces", key)
 		ctx.validate.AddWarningN(msg, line)
 	}
 
-	p := &Property{key, trimmed, line}
+	p := &Property{key, val, line}
 	ctx.props.props = append(ctx.props.props, p)
 	old, contains := ctx.props.ByKey[key]
 	if contains {
@@ -201,10 +198,11 @@ func (ctx *context) reset() {
 	ctx.val = ctx.val[:0]
 }
 
-func (ctx *context) sliceToStr(xs []byte) string {
+// returns the string and a bool which tells us if the last character was escaped
+func (ctx *context) sliceToStr(xs []byte) (string, bool) {
 	l := len(xs)
 	if l == 0 {
-		return ""
+		return "", false
 	}
 	// states
 	// 1. reading regular characters
@@ -214,12 +212,15 @@ func (ctx *context) sliceToStr(xs []byte) string {
 	state := 1
 	var buf bytes.Buffer
 	skip := 0
+	var escaped bool
 	for idx, x := range xs {
 		switch state {
 		case 1:
 			if x == '\\' {
+				escaped = true
 				state = 2
 			} else {
+				escaped = false
 				ctx.addRune(&buf, x, idx)
 			}
 		case 2:
@@ -265,7 +266,7 @@ func (ctx *context) sliceToStr(xs []byte) string {
 			}
 		}
 	}
-	return buf.String()
+	return buf.String(), escaped
 }
 
 func (ctx *context) addRune(buf *bytes.Buffer, x byte, idx int) {
@@ -361,4 +362,8 @@ func isEmptyOrComment(line []byte) bool {
 	}
 	// all whitespace line
 	return true
+}
+
+func hasTrailingWhitespace(s string) bool {
+	return len(s) > len(strings.TrimRight(s, " \t\r\n"))
 }
