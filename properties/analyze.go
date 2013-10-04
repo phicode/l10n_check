@@ -22,30 +22,39 @@
 
 package properties
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
-func AnalyzeAll(a, b *Properties) int {
-	return AnalyzeEmptyValues(a, b) +
-		AnalyzeDupKeys(a, b) +
-		AnalyzeDupKeys(b, a)
+func Analyze(a, b *Properties, sameValues bool) int {
+	n := findEmptyValues(a, b)
+	n += findMissingKeys(a, b)
+	n += findMissingKeys(b, a)
+	if sameValues {
+		n += findSameValues(a, b)
+	}
+	return n
 }
 
-func AnalyzeDupKeys(a, b *Properties) int {
+func findMissingKeys(a, b *Properties) int {
 	numFaults := 0
 	for key := range a.ByKey {
 		if _, ok := b.ByKey[key]; !ok {
 			if numFaults == 0 {
-				fmt.Println()
 				fmt.Printf("Key(s) in '%s' but not in '%s'\n", a.file, b.file)
 			}
 			fmt.Printf("\t%s\n", key)
 			numFaults++
 		}
 	}
+	if numFaults > 0 {
+		fmt.Println()
+	}
 	return numFaults
 }
 
-func AnalyzeEmptyValues(a, b *Properties) int {
+func findEmptyValues(a, b *Properties) int {
 	numFaults := 0
 	for key, vala := range a.ByKey {
 		la := len(vala.Value)
@@ -59,6 +68,30 @@ func AnalyzeEmptyValues(a, b *Properties) int {
 				numFaults++
 			}
 		}
+	}
+	if numFaults > 0 {
+		fmt.Println()
+	}
+	return numFaults
+}
+
+func findSameValues(a, b *Properties) int {
+	numFaults := 0
+	for key, vala := range a.ByKey {
+		la := len(vala.Value)
+		if valb, ok := b.ByKey[key]; ok {
+			lb := len(valb.Value)
+			if (la > 0 && lb > 0) && strings.EqualFold(vala.Value, valb.Value) {
+				if numFaults == 0 {
+					fmt.Printf("Keys(s) with same values in '%s' and '%s'\n", a.file, b.file)
+				}
+				fmt.Printf("\t%s = %q\n", key, vala.Value)
+				numFaults++
+			}
+		}
+	}
+	if numFaults > 0 {
+		fmt.Println()
 	}
 	return numFaults
 }

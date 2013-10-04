@@ -40,17 +40,19 @@ type result struct {
 var (
 	verbose = flag.Bool("v", false, "")
 	nowarn  = flag.Bool("nowarn", false, "")
+	sameval = flag.Bool("sameval", false, "")
 )
 
-const VERSION = "1.0"
+const VERSION = "1.1"
 
 const USAGE = `l10n_check version %s
 usage:
-  %s [options] <file-name> [<file-name> ...]
+  %s [options] <file> [<file> ...]
 
 options:
   -v       enable verbose mode
   -nowarn  do not print warnings
+  -sameval generate warnings for keys which have the same value
 
 `
 
@@ -96,9 +98,10 @@ func main() {
 	}
 
 	if len(results) > 1 {
+		fmt.Println()
 		master := results[0]
 		for _, other := range results[1:] {
-			n := properties.AnalyzeAll(master.props, other.props)
+			n := properties.Analyze(master.props, other.props, *sameval)
 			anyFault = anyFault || n > 0
 		}
 	}

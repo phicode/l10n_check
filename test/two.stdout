@@ -9,3 +9,7 @@ Key(s) in 'test/two_a.in' but not in 'test/two_b.in'
 
 Key(s) in 'test/two_b.in' but not in 'test/two_a.in'
 	c
+
+Keys(s) with same values in 'test/two_a.in' and 'test/two_b.in'
+	a = "a"
+
