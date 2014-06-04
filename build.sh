@@ -47,7 +47,7 @@ run_test() {
 run_test "good"  0 "test/good.in"
 run_test "noarg" 1
 run_test "bad"   2 "test/bad.in"
-run_test "two"   2 "test/two_a.in" "test/two_b.in"
+run_test "two"   2 -sameval "test/two_a.in" "test/two_b.in"
 
 if [ $faults -eq 0 ]; then
 	echo "all tests passed"
