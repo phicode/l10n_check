@@ -23,7 +23,6 @@
 package properties
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"strings"
@@ -46,7 +45,7 @@ type Properties struct {
 func ReadAndParse(filename string) (*Properties, *validate.Results, error) {
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return nil, nil, errors.New(fmt.Sprintf("could not open/read file '%s': %s", filename, err.Error()))
+		return nil, nil, fmt.Errorf("could not open/read file '%s': %s", filename, err.Error())
 	}
 	var v validate.Results
 	v.Resource = filename
