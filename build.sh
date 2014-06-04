@@ -1,5 +1,9 @@
 #!/bin/sh
 
+base=$(dirname "$0")
+base=$(readlink -e "$base")
+echo "base: $base"
+
 build() {
 	local out="bin/$3"
 	env GOOS=$1 GOARCH=$2 go build -o "$out" github.com/PhiCode/l10n_check
@@ -8,8 +12,7 @@ build() {
 	fi
 }
 
-build linux   amd64 l10n_check
-#build windows amd64 l10n_check.exe
+build linux amd64 l10n_check
 
 [ -z "$(which diff)" ] && { echo "program 'diff' not found, will not run tests"; exit 1 ; }
 
@@ -44,6 +47,8 @@ run_test() {
 	rm -f __testing.stdout __testing.stderr
 }
 
+cd "$base"
+
 run_test "good"  0 "test/good.in"
 run_test "noarg" 1
 run_test "bad"   2 "test/bad.in"
@@ -51,4 +56,7 @@ run_test "two"   2 -sameval "test/two_a.in" "test/two_b.in"
 
 if [ $faults -eq 0 ]; then
 	echo "all tests passed"
+	exit 0
 fi
+
+exit 1
