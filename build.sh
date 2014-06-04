@@ -3,6 +3,7 @@
 base=$(dirname "$0")
 base=$(readlink -e "$base")
 echo "base: $base"
+cd "$base"
 
 build() {
 	local out="bin/$3"
@@ -46,8 +47,6 @@ run_test() {
 	fi
 	rm -f __testing.stdout __testing.stderr
 }
-
-cd "$base"
 
 run_test "good"  0 "test/good.in"
 run_test "noarg" 1
