@@ -9,7 +9,7 @@ build() {
 }
 
 build linux   amd64 l10n_check
-build windows amd64 l10n_check.exe
+#build windows amd64 l10n_check.exe
 
 [ -z "$(which diff)" ] && { echo "program 'diff' not found, will not run tests"; exit 1 ; }
 
