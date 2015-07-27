@@ -27,7 +27,7 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/PhiCode/l10n_check/validate"
+	"github.com/phicode/l10n_check/validate"
 )
 
 type Property struct {
